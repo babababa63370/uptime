@@ -2,9 +2,9 @@
   "name": "qrcode-generator",
   "version": "1.0.0",
   "description": "Site esthétique pour générer des QR codes",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "npx http-server -p 5000"
+    "dev": "node server.js"
   },
   "keywords": [],
   "author": "",
