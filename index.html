@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créateur de Cartes Mentales</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .toolbar {
+            background: white;
+            padding: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            align-items: center;
+        }
+
+        .toolbar button {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toolbar button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .toolbar input[type="text"] {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 13px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .toolbar input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: white;
+            position: relative;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            background: white;
+            cursor: move;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .node-circle {
+            stroke: #667eea;
+            stroke-width: 2;
+            fill: white;
+        }
+
+        .node:hover .node-circle {
+            fill: #f0f4ff;
+            stroke-width: 3;
+        }
+
+        .node-text {
+            font-size: 13px;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+            fill: #333;
+            font-weight: 500;
+        }
+
+        .root-circle {
+            fill: #667eea;
+            stroke: #667eea;
+        }
+
+        .root-text {
+            fill: white;
+            font-weight: 700;
+        }
+
+        .connection-line {
+            stroke: #e0e0e0;
+            stroke-width: 2;
+            fill: none;
+            pointer-events: none;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .sidebar.active {
+            display: block;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-content {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .toolbar {
+                flex-direction: column;
+            }
+
+            .toolbar input[type="text"] {
+                min-width: 100%;
+            }
+
+            .sidebar {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 Créateur de Cartes Mentales</h1>
+        <p>Créez et organisez vos idées visuellement</p>
+    </div>
+
+    <div class="toolbar">
+        <input type="text" id="nodeInput" placeholder="Tapez un nœud et appuyez sur Entrée...">
+        <button onclick="addNode()">➕ Ajouter nœud</button>
+        <button onclick="addChildNode()">🌳 Ajouter enfant</button>
+        <button onclick="deleteNode()">🗑️ Supprimer</button>
+        <button onclick="clearCanvas()">🔄 Réinitialiser</button>
+        <button onclick="downloadMindmap()">📥 Télécharger</button>
+    </div>
+
+    <div class="canvas-container">
+        <svg id="canvas"></svg>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-title">Nœud sélectionné</div>
+            <div class="sidebar-content" id="sidebarContent">Cliquez sur un nœud</div>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('canvas');
+        const nodeInput = document.getElementById('nodeInput');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarContent = document.getElementById('sidebarContent');
+
+        let nodes = [];
+        let connections = [];
+        let selectedNode = null;
+        let draggedNode = null;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        const RADIUS = 40;
+        const CENTER_X = 400;
+        const CENTER_Y = 300;
+
+        class Node {
+            constructor(text, x, y, isRoot = false, parent = null) {
+                this.id = Date.now() + Math.random();
+                this.text = text;
+                this.x = x;
+                this.y = y;
+                this.isRoot = isRoot;
+                this.parent = parent;
+                this.children = [];
+            }
+        }
+
+        function addNode() {
+            const text = nodeInput.value.trim();
+            if (!text) return;
+
+            if (nodes.length === 0) {
+                const rootNode = new Node(text, CENTER_X, CENTER_Y, true);
+                nodes.push(rootNode);
+            } else {
+                const angle = Math.random() * 2 * Math.PI;
+                const distance = 150;
+                const x = CENTER_X + distance * Math.cos(angle);
+                const y = CENTER_Y + distance * Math.sin(angle);
+                const newNode = new Node(text, x, y);
+                nodes.push(newNode);
+            }
+
+            nodeInput.value = '';
+            draw();
+        }
+
+        function addChildNode() {
+            if (!selectedNode) {
+                alert('Sélectionnez un nœud d\'abord');
+                return;
+            }
+
+            const text = nodeInput.value.trim();
+            if (!text) return;
+
+            const angle = Math.random() * 2 * Math.PI;
+            const distance = 100;
+            const x = selectedNode.x + distance * Math.cos(angle);
+            const y = selectedNode.y + distance * Math.sin(angle);
+            const childNode = new Node(text, x, y, false, selectedNode);
+            
+            nodes.push(childNode);
+            selectedNode.children.push(childNode);
+            connections.push({ from: selectedNode, to: childNode });
+
+            nodeInput.value = '';
+            draw();
+        }
+
+        function deleteNode() {
+            if (!selectedNode) return;
+
+            nodes = nodes.filter(n => n !== selectedNode);
+            connections = connections.filter(c => c.from !== selectedNode && c.to !== selectedNode);
+            
+            if (selectedNode.parent) {
+                selectedNode.parent.children = selectedNode.parent.children.filter(c => c !== selectedNode);
+            }
+
+            selectedNode = null;
+            draw();
+        }
+
+        function clearCanvas() {
+            if (confirm('Êtes-vous sûr?')) {
+                nodes = [];
+                connections = [];
+                selectedNode = null;
+                draw();
+            }
+        }
+
+        function draw() {
+            svg.innerHTML = '';
+
+            // Dessiner les connexions
+            connections.forEach(conn => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', conn.from.x);
+                line.setAttribute('y1', conn.from.y);
+                line.setAttribute('x2', conn.to.x);
+                line.setAttribute('y2', conn.to.y);
+                line.setAttribute('class', 'connection-line');
+                svg.appendChild(line);
+            });
+
+            // Dessiner les nœuds
+            nodes.forEach(node => {
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('class', 'node');
+                group.setAttribute('id', `node-${node.id}`);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', node.x);
+                circle.setAttribute('cy', node.y);
+                circle.setAttribute('r', RADIUS);
+                circle.setAttribute('class', `node-circle ${node.isRoot ? 'root-circle' : ''}`);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', node.x);
+                text.setAttribute('y', node.y);
+                text.setAttribute('class', `node-text ${node.isRoot ? 'root-text' : ''}`);
+                text.textContent = node.text.substring(0, 12);
+
+                group.appendChild(circle);
+                group.appendChild(text);
+
+                group.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectNode(node);
+                });
+
+                group.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    draggedNode = node;
+                    offsetX = e.clientX - node.x;
+                    offsetY = e.clientY - node.y;
+                });
+
+                svg.appendChild(group);
+            });
+
+            if (selectedNode) {
+                const selectedGroup = svg.querySelector(`#node-${selectedNode.id}`);
+                if (selectedGroup) {
+                    selectedGroup.querySelector('.node-circle').style.fill = '#e3f2fd';
+                    selectedGroup.querySelector('.node-circle').style.strokeWidth = '3';
+                }
+            }
+        }
+
+        function selectNode(node) {
+            selectedNode = node;
+            sidebar.classList.add('active');
+            sidebarContent.innerHTML = `
+                <strong>Texte:</strong> ${node.text}<br><br>
+                <strong>Position:</strong> (${Math.round(node.x)}, ${Math.round(node.y)})<br><br>
+                <strong>Enfants:</strong> ${node.children.length}
+            `;
+            draw();
+        }
+
+        function downloadMindmap() {
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement('canvas');
+            canvas.width = svg.clientWidth;
+            canvas.height = svg.clientHeight;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0);
+                const link = document.createElement('a');
+                link.download = 'carte-mentale.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            };
+            img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+        }
+
+        svg.addEventListener('mousemove', (e) => {
+            if (draggedNode) {
+                draggedNode.x = e.clientX - offsetX;
+                draggedNode.y = e.clientY - offsetY;
+                draw();
+            }
+        });
+
+        svg.addEventListener('mouseup', () => {
+            draggedNode = null;
+        });
+
+        nodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (selectedNode) {
+                    addChildNode();
+                } else {
+                    addNode();
+                }
+            }
+        });
+
+        draw();
+    </script>
+</body>
+</html>

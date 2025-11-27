@@ -1,0 +1,13 @@
+{
+  "name": "mindmap-creator",
+  "version": "1.0.0",
+  "description": "Application pour créer des cartes mentales",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {}
+}
