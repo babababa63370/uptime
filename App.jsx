@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import QRCode from 'qrcode.react'
 import './App.css'
 
 function App() {
   const [inputValue, setInputValue] = useState('https://exemple.com')
-  const qrRef = React.useRef()
+  const qrRef = useRef()
 
   const handleDownload = () => {
     const canvas = qrRef.current.querySelector('canvas')
