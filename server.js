@@ -36,16 +36,18 @@ app.post('/api/scrape', async (req, res) => {
         if (selector) {
             $(selector).each((index, element) => {
                 const text = $(element).text().trim();
-                if (text && index < 100) {
+                if (text) {
                     results.push(text);
                 }
             });
         } else {
-            // Scraper TOUT le contenu textuel
-            $('p, h1, h2, h3, h4, h5, h6, li, span, div, article, section').each((index, element) => {
-                const text = $(element).text().trim();
-                if (text && text.length > 10 && index < 100) {
-                    results.push(text);
+            // Scraper TOUT le contenu textuel du site entier
+            const bodyText = $('body').text();
+            const lines = bodyText.split('\n').filter(line => line.trim().length > 0);
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.length > 0) {
+                    results.push(trimmed);
                 }
             });
         }
