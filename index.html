@@ -27,7 +27,7 @@
             background: white;
             border-radius: 25px;
             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             overflow: hidden;
             animation: slideUp 0.6s ease-out;
@@ -98,7 +98,7 @@
 
         .content {
             padding: 40px;
-            max-height: 600px;
+            max-height: 700px;
             overflow-y: auto;
         }
 
@@ -135,7 +135,9 @@
         }
 
         input[type="text"],
-        input[type="file"] {
+        input[type="file"],
+        input[type="color"],
+        select {
             width: 100%;
             padding: 14px 16px;
             border: 2px solid #e0e0e0;
@@ -146,11 +148,29 @@
         }
 
         input[type="text"]:focus,
-        input[type="file"]:focus {
+        input[type="file"]:focus,
+        input[type="color"]:focus,
+        select:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
             background: rgba(102, 126, 234, 0.02);
+        }
+
+        input[type="color"] {
+            cursor: pointer;
+            height: 50px;
+            padding: 4px;
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 20px;
+            padding-right: 40px;
         }
 
         input[type="file"]::file-selector-button {
@@ -166,6 +186,13 @@
 
         input[type="file"]::file-selector-button:hover {
             background: #764ba2;
+        }
+
+        .color-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
         }
 
         .qr-display {
@@ -374,6 +401,10 @@
             .scanner-controls button {
                 width: 100%;
             }
+
+            .color-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -404,6 +435,37 @@
                         value="https://exemple.com" 
                         placeholder="Entrez une URL, du texte ou un message..."
                     >
+                </div>
+
+                <div class="input-group">
+                    <label class="label">Forme</label>
+                    <select id="shapeSelect" onchange="generateQR()">
+                        <option value="square">🟫 Carrés</option>
+                        <option value="rounded">🔘 Arrondis</option>
+                        <option value="circle">⭕ Cercles</option>
+                    </select>
+                </div>
+
+                <div class="label">Couleurs</div>
+                <div class="color-row">
+                    <div class="input-group">
+                        <label class="label">Couleur des points</label>
+                        <input 
+                            type="color" 
+                            id="darkColor" 
+                            value="#667eea"
+                            onchange="generateQR()"
+                        >
+                    </div>
+                    <div class="input-group">
+                        <label class="label">Couleur du fond</label>
+                        <input 
+                            type="color" 
+                            id="lightColor" 
+                            value="#ffffff"
+                            onchange="generateQR()"
+                        >
+                    </div>
                 </div>
 
                 <div class="qr-display">
@@ -462,20 +524,15 @@
         let scanIntervalId = null;
 
         function switchTab(event, tabName) {
-            // Hide all panes
             document.querySelectorAll('.tab-pane').forEach(pane => {
                 pane.classList.remove('active');
             });
             
-            // Remove active from all tabs
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
 
-            // Show selected pane
             document.getElementById(tabName).classList.add('active');
-            
-            // Add active to clicked tab
             event.target.closest('.tab').classList.add('active');
 
             if (tabName === 'generator') {
@@ -486,25 +543,85 @@
 
         function generateQR() {
             const text = document.getElementById('textInput').value;
+            const darkColor = document.getElementById('darkColor').value;
+            const lightColor = document.getElementById('lightColor').value;
+            const shape = document.getElementById('shapeSelect').value;
             
-            // Update character count
             document.getElementById('charCount').textContent = text.length;
 
-            // Clear previous QR
             const container = document.getElementById('qrcode');
             container.innerHTML = '';
 
-            // Generate new QR
             if (text) {
-                qr = new QRCode(container, {
-                    text: text,
-                    width: 300,
-                    height: 300,
-                    colorDark: '#667eea',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+                const canvas = document.createElement('canvas');
+                
+                if (shape === 'square') {
+                    qr = new QRCode(container, {
+                        text: text,
+                        width: 300,
+                        height: 300,
+                        colorDark: darkColor,
+                        colorLight: lightColor,
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                } else if (shape === 'rounded' || shape === 'circle') {
+                    qr = new QRCode(container, {
+                        text: text,
+                        width: 300,
+                        height: 300,
+                        colorDark: darkColor,
+                        colorLight: lightColor,
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                    
+                    setTimeout(() => {
+                        const qrCanvas = container.querySelector('canvas');
+                        if (qrCanvas) {
+                            applyShapeStyle(qrCanvas, shape, darkColor);
+                        }
+                    }, 100);
+                }
             }
+        }
+
+        function applyShapeStyle(canvas, shape, color) {
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            const moduleCount = canvas.width / Math.ceil(Math.sqrt(data.length / 4) * 4 / 300);
+            const moduleSize = canvas.width / Math.ceil(Math.sqrt(data.length / 4) * 4 / 300);
+            
+            ctx.fillStyle = getComputedStyle(canvas.parentElement).backgroundColor || '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const colorArray = hexToRgb(color);
+            
+            for (let y = 0; y < moduleCount; y++) {
+                for (let x = 0; x < moduleCount; x++) {
+                    const idx = (y * moduleCount + x) * 4;
+                    const isModule = data[idx] < 128;
+                    
+                    if (isModule) {
+                        ctx.fillStyle = color;
+                        
+                        if (shape === 'rounded') {
+                            ctx.beginPath();
+                            ctx.roundRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize, moduleSize * 0.2);
+                            ctx.fill();
+                        } else if (shape === 'circle') {
+                            ctx.beginPath();
+                            ctx.arc(x * moduleSize + moduleSize / 2, y * moduleSize + moduleSize / 2, moduleSize / 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+            }
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `rgb(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)})` : hex;
         }
 
         function downloadQR() {
@@ -653,10 +770,7 @@
             errorBox.classList.add('show');
         }
 
-        // Initial QR generation
         generateQR();
-
-        // Real-time QR generation on input
         document.getElementById('textInput').addEventListener('input', generateQR);
     </script>
 </body>
