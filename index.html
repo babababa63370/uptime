@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uptime Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .add-site {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 12px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .sites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .site-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .site-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+
+        .site-url {
+            font-size: 14px;
+            color: #667eea;
+            word-break: break-all;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-up {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-down {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-pending {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .metric {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: 20px 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .btn-small {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 12px;
+            background: #667eea;
+        }
+
+        .btn-small.delete {
+            background: #f44336;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            padding: 6px 12px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .sites-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .add-site {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Uptime Monitor</h1>
+            <p class="subtitle">Surveillez l'état de vos sites en temps réel</p>
+        </div>
+
+        <div class="add-site">
+            <input type="text" id="urlInput" placeholder="https://exemple.com" autofocus>
+            <button onclick="addSite()">➕ Ajouter Site</button>
+        </div>
+
+        <div id="sitesList"></div>
+    </div>
+
+    <script>
+        let charts = {};
+
+        async function addSite() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) return alert('Entrez une URL');
+
+            try {
+                const res = await fetch('/api/add-site', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                
+                if (res.ok) {
+                    document.getElementById('urlInput').value = '';
+                    loadSites();
+                    pingSite(url);
+                }
+            } catch (e) {
+                alert('Erreur: ' + e.message);
+            }
+        }
+
+        async function pingSite(url) {
+            try {
+                await fetch('/api/ping', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                loadSites();
+            } catch (e) {
+                console.error('Ping error:', e);
+            }
+        }
+
+        async function deleteSite(url) {
+            if (!confirm('Supprimer ce site?')) return;
+            const id = btoa(url);
+            try {
+                await fetch(`/api/site/${id}`, { method: 'DELETE' });
+                loadSites();
+            } catch (e) {
+                alert('Erreur: ' + e.message);
+            }
+        }
+
+        async function loadSites() {
+            try {
+                const res = await fetch('/api/sites');
+                const sites = await res.json();
+                renderSites(sites);
+            } catch (e) {
+                console.error('Error:', e);
+            }
+        }
+
+        function renderSites(sites) {
+            const list = document.getElementById('sitesList');
+            const entries = Object.entries(sites);
+
+            if (entries.length === 0) {
+                list.innerHTML = '<div class="empty">Aucun site ajouté. Commencez par en ajouter un!</div>';
+                return;
+            }
+
+            list.innerHTML = '<div class="sites-grid">' + entries.map(([url, data]) => `
+                <div class="site-card">
+                    <div class="site-header">
+                        <div class="site-url">${url}</div>
+                        <span class="status-badge status-${data.status}">${data.status.toUpperCase()}</span>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric">
+                            <div class="metric-value">${data.pings.length}</div>
+                            <div class="metric-label">Pings</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${calculateUptime(data.pings)}%</div>
+                            <div class="metric-label">Uptime</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="chart-${btoa(url)}"></canvas>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn-small" onclick="pingSite('${url}')">🔄 Ping</button>
+                        <button class="btn-small delete" onclick="deleteSite('${url}')">🗑️ Supprimer</button>
+                    </div>
+                </div>
+            `).join('') + '</div>';
+
+            // Dessiner les graphiques
+            setTimeout(() => {
+                Object.entries(sites).forEach(([url, data]) => {
+                    drawChart(url, data.pings);
+                });
+            }, 0);
+        }
+
+        function calculateUptime(pings) {
+            if (pings.length === 0) return 0;
+            const upCount = pings.filter(p => p.status === 'up').length;
+            return Math.round((upCount / pings.length) * 100);
+        }
+
+        function drawChart(url, pings) {
+            const id = btoa(url);
+            const canvas = document.getElementById(`chart-${id}`);
+            if (!canvas) return;
+
+            if (charts[id]) charts[id].destroy();
+
+            const labels = pings.map(p => new Date(p.timestamp).toLocaleTimeString());
+            const data = pings.map(p => p.responseTime || 0);
+            const colors = pings.map(p => p.status === 'up' ? '#4caf50' : '#f44336');
+
+            charts[id] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Response Time (ms)',
+                        data,
+                        backgroundColor: colors,
+                        borderColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Charger les sites au démarrage
+        loadSites();
+
+        // Recharger toutes les 30 secondes
+        setInterval(async () => {
+            const res = await fetch('/api/sites');
+            const sites = await res.json();
+            Object.keys(sites).forEach(url => {
+                pingSite(url);
+            });
+        }, 30000);
+    </script>
+</body>
+</html>
