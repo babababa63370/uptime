@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Générateur QR Code</title>
+    <title>QR Code Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -13,7 +14,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -22,20 +23,20 @@
             padding: 20px;
         }
 
-        .container {
+        .main-container {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            max-width: 500px;
+            border-radius: 25px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+            max-width: 600px;
             width: 100%;
-            animation: slideUp 0.5s ease-out;
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
         }
 
         @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(40px);
             }
             to {
                 opacity: 1;
@@ -43,144 +44,374 @@
             }
         }
 
-        h1 {
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
             text-align: center;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+            color: white;
         }
 
-        .subtitle {
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #f0f0f0;
+            background: #f8f9fa;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 16px 20px;
             text-align: center;
-            color: #666;
-            margin-bottom: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #999;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
             font-size: 14px;
         }
 
-        .input-group {
-            margin-bottom: 30px;
+        .tab:hover {
+            color: #667eea;
         }
 
-        input {
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .tab-icon {
+            margin-right: 8px;
+        }
+
+        .content {
+            padding: 40px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Generator Tab */
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        .label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"] {
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 16px;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 14px;
             transition: all 0.3s ease;
             font-family: inherit;
         }
 
-        input:focus {
+        input[type="text"]:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            background: rgba(102, 126, 234, 0.02);
         }
 
-        .qr-container {
+        .qr-display {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #f0f0f5 100%);
+            border-radius: 16px;
             min-height: 350px;
         }
 
         #qrcode {
             background: white;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+        }
+
+        .char-count {
+            font-size: 12px;
+            color: #999;
+            margin-top: 16px;
+            font-weight: 500;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
         }
 
         button {
-            width: 100%;
-            padding: 14px;
+            flex: 1;
+            padding: 14px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 12px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-bottom: 20px;
         }
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.3);
         }
 
         button:active {
             transform: translateY(0);
         }
 
-        .info {
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-            padding: 10px;
+        button.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        button.secondary:hover {
             background: #f8f9fa;
+        }
+
+        /* Scanner Tab */
+        .scanner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+            background: #000;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .scanner-controls {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .result-box {
+            width: 100%;
+            padding: 16px;
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
             border-radius: 8px;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .result-label {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .result-text {
+            font-size: 14px;
+            color: #333;
+            word-break: break-all;
+            margin-bottom: 12px;
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
         }
 
         @media (max-width: 600px) {
-            .container {
-                padding: 20px;
+            .header {
+                padding: 30px 20px;
             }
 
-            h1 {
+            .header h1 {
                 font-size: 24px;
             }
 
-            .qr-container {
+            .content {
+                padding: 24px;
+            }
+
+            .tab {
+                padding: 12px 16px;
+                font-size: 12px;
+            }
+
+            .qr-display {
                 min-height: 300px;
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎯 Générateur QR Code</h1>
-        <p class="subtitle">Créez votre code QR en quelques secondes</p>
-
-        <div class="input-group">
-            <input 
-                type="text" 
-                id="textInput" 
-                value="https://exemple.com" 
-                placeholder="Entrez une URL ou du texte..."
-            >
+    <div class="main-container">
+        <div class="header">
+            <h1>🎯 QR Code Pro</h1>
+            <p>Générez et scannez vos codes QR en un clic</p>
         </div>
 
-        <div class="qr-container">
-            <div id="qrcode"></div>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('generator')">
+                <span class="tab-icon">✨</span>Générateur
+            </div>
+            <div class="tab" onclick="switchTab('scanner')">
+                <span class="tab-icon">📱</span>Scanneur
+            </div>
         </div>
 
-        <button onclick="downloadQR()">📥 Télécharger</button>
+        <div class="content">
+            <!-- Generator Tab -->
+            <div id="generator" class="tab-pane active">
+                <div class="input-group">
+                    <label class="label">Contenu</label>
+                    <input 
+                        type="text" 
+                        id="textInput" 
+                        value="https://exemple.com" 
+                        placeholder="Entrez une URL, du texte ou un message..."
+                    >
+                </div>
 
-        <div class="info">
-            <p><strong>Caractères:</strong> <span id="charCount">20</span></p>
+                <div class="qr-display">
+                    <div id="qrcode"></div>
+                    <div class="char-count">
+                        <strong id="charCount">20</strong> caractères
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="downloadQR()">📥 Télécharger</button>
+                    <button class="secondary" onclick="copyToClipboard()">📋 Copier</button>
+                </div>
+            </div>
+
+            <!-- Scanner Tab -->
+            <div id="scanner" class="tab-pane">
+                <div class="scanner-container">
+                    <video id="video" width="400" height="400"></video>
+                    <canvas id="canvas"></canvas>
+
+                    <div class="scanner-controls">
+                        <button onclick="startCamera()" style="flex: 1;">📷 Démarrer caméra</button>
+                        <button class="secondary" onclick="stopCamera()" style="flex: 1;">⏹️ Arrêter</button>
+                    </div>
+
+                    <div id="resultBox" class="result-box">
+                        <div class="result-label">Résultat scanné</div>
+                        <div class="result-text" id="resultText"></div>
+                        <button class="copy-btn" onclick="copyScanResult()">Copier le résultat</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         let qr = null;
+        let stream = null;
+        let scannerRunning = false;
+        let lastScannedCode = null;
+
+        function switchTab(tabName) {
+            // Hide all panes
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            
+            // Remove active from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected pane
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active to clicked tab
+            event.target.closest('.tab').classList.add('active');
+
+            if (tabName === 'generator') {
+                generateQR();
+            }
+        }
 
         function generateQR() {
             const text = document.getElementById('textInput').value;
             
-            // Mise à jour du compteur
+            // Update character count
             document.getElementById('charCount').textContent = text.length;
 
-            // Effacer le QR précédent
+            // Clear previous QR
             const container = document.getElementById('qrcode');
             container.innerHTML = '';
 
-            // Générer le nouveau QR
+            // Generate new QR
             qr = new QRCode(container, {
                 text: text,
                 width: 300,
@@ -202,10 +433,69 @@
             }
         }
 
-        // Générer QR au démarrage
+        function copyToClipboard() {
+            const text = document.getElementById('textInput').value;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copié: ' + text);
+            });
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                document.getElementById('video').srcObject = stream;
+                scannerRunning = true;
+                scanQRCode();
+            } catch (err) {
+                alert('Erreur d\'accès à la caméra: ' + err.message);
+            }
+        }
+
+        function stopCamera() {
+            scannerRunning = false;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function scanQRCode() {
+            if (!scannerRunning) return;
+
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (code) {
+                lastScannedCode = code.data;
+                document.getElementById('resultText').textContent = code.data;
+                document.getElementById('resultBox').classList.add('show');
+            }
+
+            requestAnimationFrame(scanQRCode);
+        }
+
+        function copyScanResult() {
+            if (lastScannedCode) {
+                navigator.clipboard.writeText(lastScannedCode).then(() => {
+                    alert('Résultat copié!');
+                });
+            }
+        }
+
+        // Initial QR generation
         generateQR();
 
-        // Générer QR en temps réel lors de la saisie
+        // Real-time QR generation on input
         document.getElementById('textInput').addEventListener('input', generateQR);
     </script>
 </body>
