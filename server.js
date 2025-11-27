@@ -55,6 +55,14 @@ app.post('/api/ping', async (req, res) => {
             data[url] = { groups: [], downtimes: [], status: 'up', lastCheck: new Date().toISOString() };
         }
         
+        // Migration des anciennes données
+        if (!data[url].groups) {
+            data[url].groups = [];
+        }
+        if (!data[url].downtimes) {
+            data[url].downtimes = [];
+        }
+        
         // Créer un groupe de 10 minutes
         const now = new Date();
         const tenMinAgo = new Date(now.getTime() - 10 * 60000);
@@ -84,6 +92,14 @@ app.post('/api/ping', async (req, res) => {
         let data = loadData();
         if (!data[url]) {
             data[url] = { groups: [], downtimes: [], status: 'down', lastCheck: new Date().toISOString() };
+        }
+        
+        // Migration des anciennes données
+        if (!data[url].groups) {
+            data[url].groups = [];
+        }
+        if (!data[url].downtimes) {
+            data[url].downtimes = [];
         }
         
         const now = new Date();
