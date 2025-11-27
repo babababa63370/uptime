@@ -51,38 +51,70 @@ app.post('/api/ping', async (req, res) => {
         const responseTime = Date.now() - startTime;
         
         let data = loadData();
-        if (!data[url]) data[url] = { pings: [], status: 'up' };
+        if (!data[url]) {
+            data[url] = { groups: [], downtimes: [], status: 'up', lastCheck: new Date().toISOString() };
+        }
         
-        data[url].pings.push({
-            timestamp: new Date().toISOString(),
-            status: 'up',
-            responseTime
-        });
+        // Créer un groupe de 10 minutes
+        const now = new Date();
+        const tenMinAgo = new Date(now.getTime() - 10 * 60000);
+        const timeKey = Math.floor(now.getTime() / (10 * 60000)) * (10 * 60000);
         
-        // Garder seulement les 100 derniers pings
-        if (data[url].pings.length > 100) {
-            data[url].pings = data[url].pings.slice(-100);
+        let currentGroup = data[url].groups.find(g => g.timeKey === timeKey);
+        if (!currentGroup) {
+            currentGroup = { timeKey, timestamp: new Date(timeKey).toISOString(), upCount: 0, downCount: 0, avgResponseTime: 0, responseTimes: [] };
+            data[url].groups.push(currentGroup);
+        }
+        
+        currentGroup.upCount++;
+        currentGroup.responseTimes.push(responseTime);
+        currentGroup.avgResponseTime = Math.round(currentGroup.responseTimes.reduce((a, b) => a + b, 0) / currentGroup.responseTimes.length);
+        
+        // Garder les 30 derniers groupes (5 heures)
+        if (data[url].groups.length > 30) {
+            data[url].groups = data[url].groups.slice(-30);
         }
         
         data[url].status = 'up';
+        data[url].lastCheck = new Date().toISOString();
         saveData(data);
         
         res.json({ success: true, status: 'up', responseTime });
     } catch (error) {
         let data = loadData();
-        if (!data[url]) data[url] = { pings: [], status: 'down' };
+        if (!data[url]) {
+            data[url] = { groups: [], downtimes: [], status: 'down', lastCheck: new Date().toISOString() };
+        }
         
-        data[url].pings.push({
-            timestamp: new Date().toISOString(),
-            status: 'down',
-            responseTime: null
-        });
+        const now = new Date();
+        const timeKey = Math.floor(now.getTime() / (10 * 60000)) * (10 * 60000);
         
-        if (data[url].pings.length > 100) {
-            data[url].pings = data[url].pings.slice(-100);
+        let currentGroup = data[url].groups.find(g => g.timeKey === timeKey);
+        if (!currentGroup) {
+            currentGroup = { timeKey, timestamp: new Date(timeKey).toISOString(), upCount: 0, downCount: 0, avgResponseTime: 0, responseTimes: [] };
+            data[url].groups.push(currentGroup);
+        }
+        
+        currentGroup.downCount++;
+        
+        // Enregistrer les downtimes
+        if (!data[url].lastDowntime || new Date(data[url].lastDowntime) < new Date(now.getTime() - 60000)) {
+            data[url].downtimes.push({
+                timestamp: new Date().toISOString(),
+                error: error.message
+            });
+            if (data[url].downtimes.length > 100) {
+                data[url].downtimes = data[url].downtimes.slice(-100);
+            }
+        }
+        data[url].lastDowntime = new Date().toISOString();
+        
+        if (data[url].groups.length > 30) {
+            data[url].groups = data[url].groups.slice(-30);
         }
         
         data[url].status = 'down';
+        data[url].lastCheck = new Date().toISOString();
         saveData(data);
         
         res.json({ success: true, status: 'down', error: error.message });
