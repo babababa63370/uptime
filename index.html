@@ -120,7 +120,6 @@
             }
         }
 
-        /* Generator Tab */
         .input-group {
             margin-bottom: 24px;
         }
@@ -135,7 +134,8 @@
             letter-spacing: 0.5px;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        input[type="file"] {
             width: 100%;
             padding: 14px 16px;
             border: 2px solid #e0e0e0;
@@ -145,11 +145,27 @@
             font-family: inherit;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus,
+        input[type="file"]:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
             background: rgba(102, 126, 234, 0.02);
+        }
+
+        input[type="file"]::file-selector-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: #764ba2;
         }
 
         .qr-display {
@@ -215,7 +231,6 @@
             background: #f8f9fa;
         }
 
-        /* Scanner Tab */
         .scanner-container {
             display: flex;
             flex-direction: column;
@@ -229,16 +244,33 @@
             border-radius: 12px;
             border: 2px solid #e0e0e0;
             background: #000;
+            display: none;
+        }
+
+        #video.active {
+            display: block;
         }
 
         #canvas {
             display: none;
         }
 
+        #previewImage {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        #previewImage.show {
+            display: block;
+        }
+
         .scanner-controls {
             display: flex;
             gap: 12px;
             width: 100%;
+            flex-wrap: wrap;
         }
 
         .result-box {
@@ -267,6 +299,10 @@
             color: #333;
             word-break: break-all;
             margin-bottom: 12px;
+            font-family: monospace;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
         }
 
         .copy-btn {
@@ -283,6 +319,21 @@
 
         .copy-btn:hover {
             background: #764ba2;
+        }
+
+        .error-box {
+            width: 100%;
+            padding: 12px;
+            background: #fee;
+            border-left: 4px solid #f00;
+            border-radius: 8px;
+            color: #333;
+            font-size: 13px;
+            display: none;
+        }
+
+        .error-box.show {
+            display: block;
         }
 
         @media (max-width: 600px) {
@@ -307,6 +358,22 @@
                 min-height: 300px;
                 padding: 20px;
             }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .scanner-controls {
+                flex-direction: column;
+            }
+
+            .scanner-controls button {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -318,10 +385,10 @@
         </div>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('generator')">
+            <div class="tab active" onclick="switchTab(event, 'generator')">
                 <span class="tab-icon">✨</span>Générateur
             </div>
-            <div class="tab" onclick="switchTab('scanner')">
+            <div class="tab" onclick="switchTab(event, 'scanner')">
                 <span class="tab-icon">📱</span>Scanneur
             </div>
         </div>
@@ -355,16 +422,30 @@
             <!-- Scanner Tab -->
             <div id="scanner" class="tab-pane">
                 <div class="scanner-container">
-                    <video id="video" width="400" height="400"></video>
+                    <div class="input-group" style="width: 100%;">
+                        <label class="label">Scanner un QR depuis une image</label>
+                        <input 
+                            type="file" 
+                            id="imageInput" 
+                            accept="image/*"
+                            onchange="scanImageFile()"
+                        >
+                    </div>
+
+                    <img id="previewImage" alt="Preview">
                     <canvas id="canvas"></canvas>
 
+                    <video id="video" width="400" height="400"></video>
+
                     <div class="scanner-controls">
-                        <button onclick="startCamera()" style="flex: 1;">📷 Démarrer caméra</button>
+                        <button onclick="startCamera()" style="flex: 1;">📷 Caméra</button>
                         <button class="secondary" onclick="stopCamera()" style="flex: 1;">⏹️ Arrêter</button>
                     </div>
 
+                    <div id="errorBox" class="error-box"></div>
+
                     <div id="resultBox" class="result-box">
-                        <div class="result-label">Résultat scanné</div>
+                        <div class="result-label">✓ Résultat scanné</div>
                         <div class="result-text" id="resultText"></div>
                         <button class="copy-btn" onclick="copyScanResult()">Copier le résultat</button>
                     </div>
@@ -378,8 +459,9 @@
         let stream = null;
         let scannerRunning = false;
         let lastScannedCode = null;
+        let scanIntervalId = null;
 
-        function switchTab(tabName) {
+        function switchTab(event, tabName) {
             // Hide all panes
             document.querySelectorAll('.tab-pane').forEach(pane => {
                 pane.classList.remove('active');
@@ -397,6 +479,7 @@
             event.target.closest('.tab').classList.add('active');
 
             if (tabName === 'generator') {
+                stopCamera();
                 generateQR();
             }
         }
@@ -412,14 +495,16 @@
             container.innerHTML = '';
 
             // Generate new QR
-            qr = new QRCode(container, {
-                text: text,
-                width: 300,
-                height: 300,
-                colorDark: '#667eea',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
+            if (text) {
+                qr = new QRCode(container, {
+                    text: text,
+                    width: 300,
+                    height: 300,
+                    colorDark: '#667eea',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
         }
 
         function downloadQR() {
@@ -436,20 +521,29 @@
         function copyToClipboard() {
             const text = document.getElementById('textInput').value;
             navigator.clipboard.writeText(text).then(() => {
-                alert('Copié: ' + text);
+                alert('✓ Copié: ' + text);
             });
         }
 
         async function startCamera() {
             try {
+                document.getElementById('errorBox').classList.remove('show');
+                document.getElementById('resultBox').classList.remove('show');
+                
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'environment' }
                 });
-                document.getElementById('video').srcObject = stream;
+                
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                video.classList.add('active');
                 scannerRunning = true;
-                scanQRCode();
+                
+                video.onloadedmetadata = () => {
+                    scanQRFromVideo();
+                };
             } catch (err) {
-                alert('Erreur d\'accès à la caméra: ' + err.message);
+                showError('Erreur d\'accès caméra: ' + err.message);
             }
         }
 
@@ -458,38 +552,105 @@
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
             }
+            if (scanIntervalId) {
+                clearInterval(scanIntervalId);
+            }
+            document.getElementById('video').classList.remove('active');
         }
 
-        function scanQRCode() {
+        function scanQRFromVideo() {
             if (!scannerRunning) return;
 
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
+            
+            if (!canvas.parentNode) return;
+            
             const context = canvas.getContext('2d');
 
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-            if (code) {
-                lastScannedCode = code.data;
-                document.getElementById('resultText').textContent = code.data;
-                document.getElementById('resultBox').classList.add('show');
+            if (canvas.width === 0 || canvas.height === 0) {
+                scanIntervalId = setTimeout(scanQRFromVideo, 100);
+                return;
             }
 
-            requestAnimationFrame(scanQRCode);
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            try {
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code && code.data) {
+                    lastScannedCode = code.data;
+                    document.getElementById('resultText').textContent = code.data;
+                    document.getElementById('resultBox').classList.add('show');
+                    stopCamera();
+                }
+            } catch (e) {
+                console.log('Scanning...');
+            }
+
+            scanIntervalId = setTimeout(scanQRFromVideo, 500);
+        }
+
+        function scanImageFile() {
+            const input = document.getElementById('imageInput');
+            const file = input.files[0];
+            document.getElementById('errorBox').classList.remove('show');
+            document.getElementById('resultBox').classList.remove('show');
+
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('canvas');
+                    const context = canvas.getContext('2d');
+                    
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    context.drawImage(img, 0, 0);
+
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    try {
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        
+                        if (code && code.data) {
+                            lastScannedCode = code.data;
+                            document.getElementById('resultText').textContent = code.data;
+                            document.getElementById('resultBox').classList.add('show');
+                        } else {
+                            showError('Aucun QR code trouvé dans cette image');
+                        }
+                    } catch (err) {
+                        showError('Erreur lors du scan: ' + err.message);
+                    }
+
+                    const preview = document.getElementById('previewImage');
+                    preview.src = e.target.result;
+                    preview.classList.add('show');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
 
         function copyScanResult() {
             if (lastScannedCode) {
                 navigator.clipboard.writeText(lastScannedCode).then(() => {
-                    alert('Résultat copié!');
+                    alert('✓ Résultat copié!');
                 });
             }
+        }
+
+        function showError(message) {
+            const errorBox = document.getElementById('errorBox');
+            errorBox.textContent = message;
+            errorBox.classList.add('show');
         }
 
         // Initial QR generation
