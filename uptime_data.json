@@ -195,6 +195,26 @@
         "timestamp": "2025-11-27T22:13:40.421Z",
         "status": "up",
         "responseTime": 191
+      },
+      {
+        "timestamp": "2025-11-27T22:14:07.419Z",
+        "status": "up",
+        "responseTime": 220
+      },
+      {
+        "timestamp": "2025-11-27T22:14:08.087Z",
+        "status": "up",
+        "responseTime": 193
+      },
+      {
+        "timestamp": "2025-11-27T22:14:39.447Z",
+        "status": "up",
+        "responseTime": 208
+      },
+      {
+        "timestamp": "2025-11-27T22:14:39.508Z",
+        "status": "up",
+        "responseTime": 204
       }
     ],
     "status": "up"
