@@ -175,6 +175,26 @@
         "timestamp": "2025-11-27T22:12:38.792Z",
         "status": "up",
         "responseTime": 181
+      },
+      {
+        "timestamp": "2025-11-27T22:13:07.517Z",
+        "status": "up",
+        "responseTime": 239
+      },
+      {
+        "timestamp": "2025-11-27T22:13:07.984Z",
+        "status": "up",
+        "responseTime": 181
+      },
+      {
+        "timestamp": "2025-11-27T22:13:37.927Z",
+        "status": "up",
+        "responseTime": 223
+      },
+      {
+        "timestamp": "2025-11-27T22:13:40.421Z",
+        "status": "up",
+        "responseTime": 191
       }
     ],
     "status": "up"
