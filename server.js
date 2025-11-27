@@ -35,15 +35,17 @@ app.post('/api/scrape', async (req, res) => {
 
         if (selector) {
             $(selector).each((index, element) => {
-                if (index < 20) {
-                    results.push($(element).text().trim());
+                const text = $(element).text().trim();
+                if (text && index < 100) {
+                    results.push(text);
                 }
             });
         } else {
-            // Par défaut, récupérer les titres h1 et h2
-            $('h1, h2').each((index, element) => {
-                if (index < 20) {
-                    results.push($(element).text().trim());
+            // Scraper TOUT le contenu textuel
+            $('p, h1, h2, h3, h4, h5, h6, li, span, div, article, section').each((index, element) => {
+                const text = $(element).text().trim();
+                if (text && text.length > 10 && index < 100) {
+                    results.push(text);
                 }
             });
         }
